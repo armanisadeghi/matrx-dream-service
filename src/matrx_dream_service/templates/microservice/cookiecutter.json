@@ -1,0 +1,12 @@
+{
+    "app_name": "app-name",
+    "app_dirname": "app-name",
+    "app_description": "App description for your microservice",
+    "app_version": "0.0.1",
+    "app_environment": "local",
+    "app_debug": true,
+    "author_name": "jatin",
+    "app_primary_service_name": "Service",
+    "python_version": "3.12"
+  }
+  

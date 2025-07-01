@@ -1,0 +1,12 @@
+{"default_context": {
+    "app_name": "scraper",
+    "app_dirname": "matrx-scraper",
+    "app_description": "Scrape service",
+    "app_version": "0.0.1",
+    "app_environment": "local",
+    "app_debug": true,
+    "author_name": "jatin",
+    "app_primary_service_name": "Scraper",
+    "python_version": "3.12"
+  }
+  }

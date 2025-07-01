@@ -1,0 +1,19 @@
+[project]
+name = "{{cookiecutter.app_name}}"
+version = "{{cookiecutter.app_version}}"
+description = "{{cookiecutter.app_description}}"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "uvicorn>=0.31.0",
+    "pydantic-settings>=2.9.1",
+    "concurrent-log-handler>=0.9.25",
+    "matrx-utils",
+    "matrx-connect",
+    "matrx-orm",
+]
+
+[tool.uv.sources]
+matrx-utils = { git = "https://github.com/armanisadeghi/matrx-utils" }
+matrx-orm = { git = "https://github.com/armanisadeghi/matrx-orm" }
+matrx-connect = { git = "https://github.com/armanisadeghi/matrx-connect" }

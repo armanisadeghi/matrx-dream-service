@@ -1,0 +1,31 @@
+[project]
+name = "matrx-dream-service"
+version = "0.1.0"
+description = "Matrx service"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "cookiecutter>=2.6.0",
+    "matrx-connect",
+    "matrx-utils",
+    "matrx-orm"
+]
+
+[project.scripts]
+matrx = "matrx_dream_service.cli:main"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/matrx_dream_service"]
+
+[tool.uv.sources]
+matrx-utils = { git = "https://github.com/armanisadeghi/matrx-utils.git" }
+matrx-connect = { git = "https://github.com/armanisadeghi/matrx-connect.git" }
+matrx-orm = { git = "https://github.com/armanisadeghi/matrx-orm.git" }
+
+
+[tool.setuptools]
+include-package-data = true
