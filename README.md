@@ -1,1 +1,1 @@
-# matrx-dream-service
+# AI Matrx Service Template
