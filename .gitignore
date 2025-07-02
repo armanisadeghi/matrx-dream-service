@@ -135,10 +135,10 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
-.envrc
+# .env
+# .envrc
 .venv
-env/
+#env/
 venv/
 ENV/
 env.bak/
@@ -198,8 +198,8 @@ cython_debug/
 #  Cursor is an AI-powered code editor. `.cursorignore` specifies files/directories to
 #  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
 #  refer to https://docs.cursor.com/context/ignore-files
-.cursorignore
-.cursorindexingignore
+# .cursorignore
+# .cursorindexingignore
 
 # Marimo
 marimo/_static/
@@ -207,5 +207,5 @@ marimo/_lsp/
 __marimo__/
 
 
-.env
-!src/matrx_dream_service/templates/**/.env
+temp/
+.idea/
