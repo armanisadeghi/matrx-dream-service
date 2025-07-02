@@ -508,7 +508,7 @@ wheels = [
 [[package]]
 name = "matrx-connect"
 version = "0.1.0"
-source = { git = "https://github.com/armanisadeghi/matrx-connect.git#0aed74c22cae70832fb18e307df0e2233d3b40fa" }
+source = { git = "https://github.com/armanisadeghi/matrx-connect.git#cd96ca66e27ab7805fe2cb3ac1d4da9c4b7f4c66" }
 dependencies = [
     { name = "fastapi" },
     { name = "matrx-utils" },
