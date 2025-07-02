@@ -15,5 +15,3 @@ class AppServiceFactory(ServiceFactory):
 
         # Example of registering a multi-instance service:
         # self.register_multi_instance_service(service_name="transcription_service", service_class=TranscriptionService)
-
-configure_factory(AppServiceFactory)

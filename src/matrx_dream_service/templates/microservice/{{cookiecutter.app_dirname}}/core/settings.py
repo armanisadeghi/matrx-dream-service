@@ -1,7 +1,9 @@
 from matrx_utils.conf import configure_settings
 from pathlib import Path
 from matrx_utils import vcprint
+from dotenv import load_dotenv
 
+load_dotenv()
 
 class Settings:
 
