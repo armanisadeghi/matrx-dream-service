@@ -5,13 +5,13 @@ description = "{{cookiecutter.app_name}} service"
 readme = "README.md"
 requires-python = ">={{cookiecutter.minimum_python_version}}"
 dependencies = [
-    "uvicorn>=0.31.0",
-    "pydantic-settings>=2.9.1",
-    "concurrent-log-handler>=0.9.25",
+    "uvicorn",
+    "pydantic-settings",
+    "concurrent-log-handler",
     "matrx-utils",
     "matrx-connect",
     "matrx-orm",
-    "python-socketio>=5.13.0"
+    "python-socketio"
 ]
 
 [tool.uv.sources]
