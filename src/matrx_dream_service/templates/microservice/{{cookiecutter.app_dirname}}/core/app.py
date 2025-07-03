@@ -14,6 +14,11 @@ import core.system_logger
 logger = logging.getLogger("app")
 logger.info("Starting application")
 
+# Initialize / Register app schema
+import app_schema
+vcprint("Initialized app schema", color="bright_teal")
+
+
 # Initialize service factory
 configure_factory(AppServiceFactory)
 vcprint("Service factory initialized", color="bright_teal")

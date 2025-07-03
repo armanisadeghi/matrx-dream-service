@@ -1,12 +1,20 @@
-{"default_context": {
-    "app_name": "scraper",
-    "app_dirname": "matrx-scraper",
-    "app_description": "Scrape service",
-    "app_version": "0.0.1",
-    "app_environment": "local",
-    "app_debug": true,
-    "author_name": "jatin",
-    "app_primary_service_name": "Scraper",
-    "python_version": "3.12"
+{"default_context":{
+  "app_name": "scraper",
+  "app_dirname": "matrx-scraper",
+  "app_primary_service_name": "Scraper",
+  "author_name": "jatin",
+  "python_version": "3.12",
+  "minimum_python_version": "3.10",
+  "env_vars": {
+    "PORT": 8000,
+    "DEBUG": true,
+    "ENVIRONMENT": "local",
+    "APP_VERSION": "0.0.1",
+    "LOG_VCPRINT": true,
+    "APP_DESCRIPTION": "Matrx scraper",
+    "SUPABASE_AUTH_URL": "https://.supabase.co",
+    "SUPABASE_AUTH_KEY": "auth-key",
+    "SUPABASE_JWT_SECRET": "secret"
   }
-  }
+}
+}
