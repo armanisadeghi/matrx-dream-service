@@ -5,10 +5,7 @@ description = "Matrx service"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "cookiecutter>=2.6.0",
-    "matrx-connect",
     "matrx-utils",
-    "matrx-orm"
 ]
 
 [project.scripts]
@@ -23,9 +20,6 @@ packages = ["src/matrx_dream_service"]
 
 [tool.uv.sources]
 matrx-utils = { git = "https://github.com/armanisadeghi/matrx-utils.git" }
-matrx-connect = { git = "https://github.com/armanisadeghi/matrx-connect.git" }
-matrx-orm = { git = "https://github.com/armanisadeghi/matrx-orm.git" }
-
 
 [tool.setuptools]
 include-package-data = true
