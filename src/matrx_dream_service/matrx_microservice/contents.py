@@ -174,7 +174,7 @@ from socketio import ASGIApp
 
 from matrx_utils import vcprint, settings
 from matrx_connect import sio, get_user_session_namespace ,configure_factory
-from matrx_connect.api import create_app
+from matrx_connect.api import get_app
 from services.app_factory import AppServiceFactory
 
 load_dotenv()
@@ -194,7 +194,7 @@ configure_factory(AppServiceFactory)
 vcprint("Service factory initialized", color="bright_teal")
 
 # Create FastAPI app
-app = create_app(settings.APP_NAME, settings.APP_DESCRIPTION, settings.APP_VERSION)
+app = get_app(settings.APP_NAME, settings.APP_DESCRIPTION, settings.APP_VERSION)
 vcprint("FastAPI application created", color="green")
 
 # Configure Socket.IO

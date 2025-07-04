@@ -238,6 +238,7 @@ register_database(my_db_{index})
         app_name = settings.get('app_name', '')
         app_version = settings.get('app_version', '')
         app_description = settings.get('app_description', '')
+        app_primary_service_name = settings.get('app_primary_service_name', '')
 
         if app_name or app_version or app_description:
             vcprint("  ⚙️  Adding application settings to environment...", color="blue")
@@ -251,6 +252,9 @@ register_database(my_db_{index})
             if app_description:
                 env_content += f"APP_DESCRIPTION={app_description}\n"
                 vcprint(f"    ✓ APP_DESCRIPTION = {app_description}", color="light_green")
+            if app_primary_service_name:
+                env_content += f"APP_PRIMARY_SERVICE_NAME={app_primary_service_name}_service\n"
+                vcprint(f"    ✓ APP_PRIMARY_SERVICE_NAME = {app_primary_service_name}", color="light_green")
 
         with open(env_path, 'w') as f:
             f.write(env_content)
