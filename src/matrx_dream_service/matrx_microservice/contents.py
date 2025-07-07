@@ -180,6 +180,7 @@ from services.app_factory import AppServiceFactory
 load_dotenv()
 
 import core.system_logger
+import database.db_conf
 
 logger = logging.getLogger("app")
 logger.info("Starting application")
@@ -204,7 +205,20 @@ sio.register_namespace(user_session_namespace)
 app.mount("/socket.io", socketio_app)
 
 vcprint("Socket.IO configured", color="green")
+
+from matrx_orm import get_all_database_project_names
+from matrx_connect.socket import get_app_factory
+print()
+vcprint("[Application startup complete]", color="yellow")
+vcprint("  Registered Services", color="blue")
+for service_name in get_app_factory().list_registered_service():
+    print(f"   - {service_name}")
+vcprint("  Registered Databases", color="blue")
+for db_name in get_all_database_project_names():
+    print(f"   - {db_name}")
+print()
 '''
+
 
 def get_settings_content(app_name):
     return f'''from matrx_utils.conf import configure_settings
@@ -228,8 +242,9 @@ class Settings:
 
 
 configure_settings(Settings, env_first=True)
-vcprint("Settings initialized", "[settings.py]", color="bright_teal")
+vcprint("Settings initialized", "[settings.py]", color="green")
 '''
+
 
 def get_system_logger_content():
     return '''
@@ -380,6 +395,7 @@ EXPOSE 8000
 ENTRYPOINT ["/app/entrypoint.sh"]
 '''
 
+
 def get_entrypoint_sh_content():
     return '''#!/bin/bash
 # Disable exit on error to allow the script to continue even if a command fails
@@ -406,8 +422,9 @@ echo "Starting application..."
 python run.py
 '''
 
+
 def get_run_py_content():
-    return  '''import uvicorn
+    return '''import uvicorn
 from matrx_utils import settings, vcprint
 import core.settings
 
@@ -418,11 +435,12 @@ if __name__ == "__main__":
     )
     uvicorn.run(
         "core.app:app",
-        host="127.0.0.1",
+        host="0.0.0.0",
         port=int(settings.PORT),
         reload=False
     )
 '''
+
 
 def get_migrations_content(app_name):
     return f"""import core.settings
@@ -485,3 +503,29 @@ vcprint(
 )
 
 schema_manager.schema.code_handler.print_all_batched()"""
+
+def get_admin_service_content():
+    return """from matrx_connect.socket.services import AdminServiceBase
+from matrx_orm import get_all_database_project_names
+class AdminService(AdminServiceBase):
+
+    def __init__(self):
+        super().__init__()
+
+    async def get_registered_databases(self):
+        database_names = get_all_database_project_names()
+        try:
+            await self.stream_handler.send_data(database_names)
+        except Exception as e:
+            await self.stream_handler.send_error(
+                    user_visible_message="Sorry, unable to complete the {task_name.lower()} task. Please try again later.",
+                    message="Task returned no content",
+                    error_type="task_failed"
+                    )
+        finally:
+            await self.stream_handler.send_end()
+
+
+    # async def test_database_connection(self):
+    #     pass"""
+

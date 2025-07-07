@@ -4,13 +4,16 @@ from typing import Dict, Any
 import subprocess
 import os
 import sys
+import black
 
 from matrx_utils import vcprint
-
 from matrx_dream_service.matrx_microservice.contents import get_gitignore_content, get_conversions_content, \
     get_validation_content, get_app_py_content, get_settings_content, get_system_logger_content, \
-    get_docker_file_content, get_entrypoint_sh_content, get_run_py_content, get_migrations_content
-
+    get_docker_file_content, get_entrypoint_sh_content, get_run_py_content, get_migrations_content, get_admin_service_content
+from matrx_utils import RESTRICTED_SERVICE_NAMES, \
+    RESTRICTED_ENV_VAR_NAMES, RESTRICTED_TASK_AND_DEFINITIONS, RESTRICTED_FIELD_NAMES
+from matrx_dream_service.matrx_microservice.default_template import default_config
+from matrx_dream_service.matrx_microservice.merge_config import TemplateMerger
 
 class MicroserviceGenerator:
     def __init__(self, config_path: str, output_dir: str):
@@ -18,13 +21,61 @@ class MicroserviceGenerator:
         self.output_dir = Path(output_dir)
         self.config = self._load_config()
 
+    def _validate_config(self, config):
+        conflicts = []
+
+        # Validate environment variables (CASE SENSITIVE)
+        env_vars = config.get("env", {})
+        for env_name in env_vars.keys():
+            if env_name in RESTRICTED_ENV_VAR_NAMES:
+                conflicts.append(f"Environment variable '{env_name}' is restricted")
+
+        # Convert restricted sets to lowercase for case-insensitive comparison
+        restricted_services_lower = {name.lower() for name in RESTRICTED_SERVICE_NAMES}
+        restricted_tasks_defs_lower = {name.lower() for name in RESTRICTED_TASK_AND_DEFINITIONS}
+        restricted_field_names = {name.lower() for name in RESTRICTED_FIELD_NAMES}
+        # Validate schema definitions (CASE INSENSITIVE)
+        schema = config.get("schema", {})
+        definitions = schema.get("definitions", {})
+        for def_name in definitions.keys():
+            if def_name.lower() in restricted_tasks_defs_lower:
+                conflicts.append(f"Schema definition '{def_name}' is restricted (case insensitive)")
+
+        # Validate schema tasks (services and task names) (CASE INSENSITIVE)
+        tasks = schema.get("tasks", {})
+        for service_name, service_tasks in tasks.items():
+            if service_name.lower() in restricted_services_lower:
+                conflicts.append(f"Service name '{service_name}' is restricted (case insensitive)")
+
+            for task_name, task_def in service_tasks.items():
+                if task_name.lower() in restricted_tasks_defs_lower:
+                    conflicts.append(
+                        f"Task name '{task_name}' in service '{service_name}' is restricted (case insensitive)")
+                for field_name in task_def.keys():
+                    if field_name.lower() in restricted_field_names:
+                        conflicts.append(
+                            f"Field name '{field_name}' in service '{task_name}' is restricted (case insensitive)")
+
+        # Raise error if any conflicts found
+        if conflicts:
+            raise ValueError(
+                f"Configuration validation failed:\n" + "\n".join(f"  - {conflict}" for conflict in conflicts))
+
     def _load_config(self) -> Dict[str, Any]:
         """Load configuration from JSON file"""
         vcprint("🔧 Loading configuration...", color="cyan", style="bold")
         with open(self.config_path, 'r') as f:
             config = json.load(f)
         vcprint(f"✅ Configuration loaded successfully from: {self.config_path}", color="green")
-        return config
+
+        self._validate_config(config)
+
+        system_config = default_config.copy()
+        merger = TemplateMerger()
+        merged_config = merger.merge(system_config, config)
+
+        vcprint(merged_config, title="Merged configuration", color="bright_teal")
+        return merged_config
 
     def generate_microservice(self):
         """Main function to generate the complete microservice"""
@@ -47,9 +98,12 @@ class MicroserviceGenerator:
         self._handle_settings()
         self._generate_app_files()
         self._generate_other_schema_files()
+        self._generate_service_directories()
         self._generate_core_files()
         self._generate_docker_files()
         self._generate_root_files()
+        self._format_project()
+
         self._run_post_create_scripts()
 
         vcprint("\n" + "=" * 80, color="bright_green", style="bold")
@@ -267,12 +321,12 @@ register_database(my_db_{index})
 
         settings = self.config.get('settings', {})
         pyproject_path = self.output_dir / 'pyproject.toml'
+        dependencies = self.config.get('dependencies', [])
 
         app_name = settings.get('app_name', 'microservice')
         app_version = settings.get('app_version', '0.1.0')
         app_description = settings.get('app_description', 'A microservice')
         requires_python = settings.get('requires_python', '>=3.8')
-        dependencies = settings.get('dependencies', [])
         additional_content = settings.get('pyproject_additional_content', '')
 
         vcprint(f"  📦 Project: {app_name} v{app_version}", color="blue")
@@ -300,10 +354,6 @@ dependencies = [
 
         content += ']\n'
 
-        if additional_content:
-            content += f"\n{additional_content}\n"
-            vcprint("  ✓ Additional project configuration added", color="light_green")
-
         with open(pyproject_path, 'w') as f:
             f.write(content)
 
@@ -322,56 +372,11 @@ dependencies = [
         vcprint(f"  🏗️  Building schema for application: {app_name}", color="blue")
         vcprint(f"  🎯 Primary service: {app_primary_service_name}", color="blue")
 
-        # Create default schema
-        default_schema = {
-            "definitions": {
-                "MIC_CHECK_DEFINITION": {
-                    "mic_check_message": {
-                        "REQUIRED": False,
-                        "DEFAULT": "Service mic check",
-                        "VALIDATION": "validate_mic_check_min_length",
-                        "DATA_TYPE": "string",
-                        "CONVERSION": "convert_mic_check",
-                        "REFERENCE": None,
-                        "COMPONENT": "input",
-                        "COMPONENT_PROPS": {},
-                        "DESCRIPTION": f"Test message for {app_primary_service_name} service connectivity",
-                        "ICON_NAME": "Mic"
-                    }
-                }
-            },
-            "tasks": {
-                f"{app_primary_service_name.upper()}_SERVICE": {
-                    "MIC_CHECK": {"$ref": "definitions/MIC_CHECK_DEFINITION"}
-                }
-            }
-        }
+        # Use user schema directly - no merging
+        schema = user_schema
+        tasks_by_service = schema.get('tasks', {})
 
-        # Merge user schema with default
-        merged_schema = default_schema.copy()
-
-        # Merge definitions
-        if "definitions" in user_schema:
-            vcprint(f"  📝 Merging {len(user_schema['definitions'])} custom definitions", color="blue")
-            merged_schema["definitions"].update(user_schema["definitions"])
-
-        # Merge tasks
-        if "tasks" in user_schema:
-            vcprint(f"  🔧 Merging {len(user_schema['tasks'])} custom task services", color="blue")
-            for service_name, tasks in user_schema["tasks"].items():
-                if service_name in merged_schema["tasks"]:
-                    merged_schema["tasks"][service_name].update(tasks)
-                else:
-                    merged_schema["tasks"][service_name] = tasks.copy()
-
-        # Ensure MIC_CHECK exists in all services
-        for service_name in merged_schema["tasks"]:
-            if "MIC_CHECK" not in merged_schema["tasks"][service_name]:
-                merged_schema["tasks"][service_name]["MIC_CHECK"] = {"$ref": "definitions/MIC_CHECK_DEFINITION"}
-
-        vcprint(
-            f"  ✓ Schema merged: {len(merged_schema['definitions'])} definitions, {len(merged_schema['tasks'])} services",
-            color="light_green")
+        vcprint(f"  📝 Processing {len(tasks_by_service)} services from user schema", color="blue")
 
         # Create app_schema directory and schema.py
         app_schema_dir = self.output_dir / 'app_schema'
@@ -380,9 +385,7 @@ dependencies = [
 
         schema_file_path = app_schema_dir / 'schema.py'
         schema_content = f'''from matrx_connect.socket.schema import register_schema
-
-schema = {merged_schema}
-
+schema = {schema}
 register_schema(schema)
     '''
 
@@ -396,41 +399,51 @@ register_schema(schema)
         vcprint("  📁 Created services directory", color="light_green")
 
         # Generate service files for each service in tasks
-        vcprint(f"  🔧 Generating {len(merged_schema['tasks'])} service files...", color="blue")
-        for service_name, tasks in merged_schema["tasks"].items():
+        vcprint(f"  🔧 Generating {len(tasks_by_service)} service files...", color="blue")
+        for service_name, tasks in tasks_by_service.items():
             service_file_name = service_name.lower().replace('_service', '') + '_service.py'
             service_class_name = service_name.lower().replace('_service', '').capitalize() + 'Service'
+            clean_service_name = service_name.lower().replace('_service', '')
+            orchestrator_class_name = clean_service_name.capitalize() + 'Orchestrator'
 
             vcprint(f"    ⚙️  Generating service: {service_class_name}", color="blue")
 
-            # Collect all field parameters from all tasks
+            # Collect fields from tasks (both direct fields and referenced definitions)
             all_fields = set()
+            all_fields.add('mic_check_message')  # Always add mic_check_message
+
             for task_name, task_def in tasks.items():
                 if isinstance(task_def, dict) and "$ref" not in task_def:
+                    # Direct field definitions
                     all_fields.update(task_def.keys())
                 elif isinstance(task_def, dict) and "$ref" in task_def:
-                    # Resolve reference to get fields
+                    # Resolve reference to get fields from definition
                     ref_path = task_def["$ref"].split("/")
                     if len(ref_path) == 2 and ref_path[0] == "definitions":
                         def_name = ref_path[1]
-                        if def_name in merged_schema["definitions"]:
-                            all_fields.update(merged_schema["definitions"][def_name].keys())
+                        definitions = schema.get("definitions", {})
+                        if def_name in definitions:
+                            all_fields.update(definitions[def_name].keys())
+
 
             # Generate service file content
             service_content = f'''from matrx_connect.socket.core import SocketServiceBase
+from src.{clean_service_name} import {orchestrator_class_name}
+
 class {service_class_name}(SocketServiceBase):
 
     def __init__(self):
         self.stream_handler = None
-        self.mic_check_message = None
 '''
 
             # Add all field parameters to init
             for field in sorted(all_fields):
-                if field != "mic_check_message":  # Already added above
-                    service_content += f'        self.{field} = None\n'
+                service_content += f'        self.{field} = None\n'
 
             service_content += f'''
+        # Initialize orchestrator
+        self.{clean_service_name}_orchestrator = {orchestrator_class_name}()
+        
         super().__init__(
             app_name="{app_name}",
             service_name="{service_class_name}",
@@ -440,27 +453,42 @@ class {service_class_name}(SocketServiceBase):
 
     async def process_task(self, task, task_context=None, process=True):
         return await self.execute_task(task, task_context, process)
-    '''
 
-            # Generate async methods for each task
-            for task_name in tasks.keys():
-                method_name = task_name.lower()
-                if method_name == "mic_check":
-                    # Special handling for mic_check
-                    service_content += f'''
-    async def {method_name}(self):
+    async def mic_check(self):
         await self.stream_handler.send_chunk(
             "[{service_name} SERVICE] Mic Check Response to: "
             + self.mic_check_message
         )
         await self.stream_handler.send_end()
-    '''
-                else:
+'''
+
+            # Generate async methods for each task
+            for task_name in tasks.keys():
+                method_name = task_name.lower()
+                if method_name != "mic_check":  # Skip mic_check as it's already added
                     service_content += f'''
     async def {method_name}(self):
-        # Implement {task_name.lower()} logic here
-        pass
-    '''
+        """Execute {task_name.lower()} task"""
+        self.{clean_service_name}_orchestrator.add_stream_handler(self.stream_handler)  # Add stream handler to orchestrator for intermediate feedback.
+        try:
+            content = await self.{clean_service_name}_orchestrator.{method_name}()
+            if content:
+                await self.stream_handler.send_data(content)
+            else:
+                await self.stream_handler.send_error(
+                    user_visible_message="Sorry, unable to complete the {task_name.lower()} task. Please try again later.",
+                    message="Task returned no content",
+                    error_type="task_failed"
+                )
+        except Exception as e:
+            await self.stream_handler.send_error(
+                user_visible_message="Sorry an error occurred, please try again later.",
+                message=f"Task execution failed: {{e}}",
+                error_type="task_failed"
+            )
+        finally:
+            await self.stream_handler.send_end()
+'''
 
             # Write service file
             service_file_path = services_dir / service_file_name
@@ -474,10 +502,11 @@ class {service_class_name}(SocketServiceBase):
         app_factory_path = services_dir / 'app_factory.py'
         app_factory_content = '''from matrx_connect.socket import ServiceFactory
 from matrx_connect.socket import configure_factory
+from .admin_service import AdminService
 '''
 
         # Import all service classes
-        for service_name in merged_schema["tasks"].keys():
+        for service_name in tasks_by_service.keys():
             service_file_name = service_name.lower().replace('_service', '') + '_service'
             service_class_name = service_name.lower().replace('_service', '').capitalize() + 'Service'
             app_factory_content += f'from .{service_file_name} import {service_class_name}\n'
@@ -490,7 +519,7 @@ class AppServiceFactory(ServiceFactory):
 '''
 
         # Register all services
-        for service_name in merged_schema["tasks"].keys():
+        for service_name in tasks_by_service.keys():
             service_class_name = service_name.lower().replace('_service', '').capitalize() + 'Service'
             service_key = service_name.lower()
             if service_name == f"{app_primary_service_name.upper()}_SERVICE":
@@ -499,6 +528,7 @@ class AppServiceFactory(ServiceFactory):
                 app_factory_content += f'        self.register_service("{service_key}", {service_class_name})\n'
 
         app_factory_content += '''
+        self.register_service(service_name="admin_service", service_class=AdminService)
         # Example of registering a single-instance service:
         # self.register_service(service_name="custom_service", service_class=CustomService)
 
@@ -511,6 +541,82 @@ class AppServiceFactory(ServiceFactory):
 
         vcprint("  ✓ Service factory (app_factory.py) generated", color="light_green")
         vcprint("✅ Application schema and services generation completed", color="green")
+
+        admin_service_file_name = services_dir / "admin_service.py"
+        with open(admin_service_file_name, 'w') as f:
+            f.write(get_admin_service_content())
+
+    def _generate_service_directories(self):
+        """Generate service directories with orchestrator classes"""
+        vcprint("\n📋 STEP 7.5: Generating service directories and orchestrators", color="bright_blue", style="bold")
+
+        schema = self.config.get('schema', {})
+        tasks_by_service = schema.get('tasks', {})
+
+        if not tasks_by_service:
+            vcprint("ℹ️  No services found in schema, skipping service directories", color="light_blue")
+            return
+
+        src_dir = self.output_dir / 'src'
+        src_dir.mkdir(parents=True, exist_ok=True)
+        vcprint("  📁 Created src directory", color="light_green")
+
+        vcprint(f"  🔧 Generating {len(tasks_by_service)} service directories...", color="blue")
+
+        for service_name, tasks in tasks_by_service.items():
+            # Convert SERVICE_NAME to service_name format
+            clean_service_name = service_name.lower().replace('_service', '')
+            service_dir = src_dir / clean_service_name
+            service_dir.mkdir(parents=True, exist_ok=True)
+
+            # Generate __init__.py
+            orchestrator_class_name = clean_service_name.capitalize() + 'Orchestrator'
+            init_content = f'''from .{clean_service_name}_orchestrator import {orchestrator_class_name}
+__all__ = ["{orchestrator_class_name}"]
+    '''
+            with open(service_dir / '__init__.py', 'w') as f:
+                f.write(init_content)
+
+            # Generate orchestrator class
+            orchestrator_content = f'''class {orchestrator_class_name}:
+    """
+    Orchestrator for {clean_service_name} service operations.
+    This class handles the core business logic for {clean_service_name} tasks.
+    """
+
+    def __init__(self):
+        self.stream_handler = None
+        
+        
+    def add_stream_handler(self, stream_handler):
+        self.stream_handler = stream_handler
+    '''
+
+            # Generate method for each task
+            for task_name in tasks.keys():
+                method_name = task_name.lower()
+                if method_name != "mic_check":  # Don't generate mic_check in orchestrator
+                    orchestrator_content += f'''
+    async def {method_name}(self):
+        """
+        Handle {task_name.lower()} task.
+        """
+        # TODO: Replace this placeholder with actual implementation
+
+        return {{
+            "task": "{task_name.lower()}",
+            "service": "{clean_service_name}",
+            "message": "This is a placeholder for {task_name.lower()} task",
+        }}
+    '''
+
+            with open(service_dir / f'{clean_service_name}_orchestrator.py', 'w') as f:
+                f.write(orchestrator_content)
+
+            vcprint(f"    ✓ {clean_service_name}/ directory with {len(tasks)} orchestrator methods",
+                    color="light_green")
+
+        vcprint("✅ Service directories and orchestrators generation completed", color="green")
 
     def _generate_other_schema_files(self):
         """Generate app schema files"""
@@ -681,7 +787,8 @@ from .validation_functions import *
                     if return_code == 0:
                         vcprint(f"✅ Script {i} completed successfully: {script}", color="green", style="bold")
                     else:
-                        vcprint(f"❌ Script {i} failed with return code {return_code}: {script}", color="red", style="bold")
+                        vcprint(f"❌ Script {i} failed with return code {return_code}: {script}", color="red",
+                                style="bold")
                 except FileNotFoundError:
                     vcprint(f"❌ Command not found: {script}", color="red")
                 except Exception as e:
@@ -691,6 +798,35 @@ from .validation_functions import *
             vcprint(f"\nReturned to original directory: {original_dir}", color="blue")
 
 
+    def _format_py_file(self, fp):
+        file_path = Path(fp)
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            code = f.read()
+        try:
+            formatted_code = black.format_file_contents(
+                code,
+                fast=False,  # Run in safe mode to ensure correctness
+                mode=black.FileMode(
+                    target_versions={black.TargetVersion.PY38},
+                    line_length=80,
+                ),
+            )
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(formatted_code)
+
+        except black.NothingChanged:
+            pass
+
+    def _format_project(self):
+        directory = self.output_dir
+
+        for fp in directory.glob("**/*.py"):
+            try:
+                self._format_py_file(fp)
+            except (black.InvalidInput, ValueError) as e:
+                pass
+
 if __name__ == '__main__':
-    MicroserviceGenerator(config_path=r"D:\work\matrx\matrx-dream-service\temp\base_config.json",
-                          output_dir=r"D:\work\matrx\generated\matrx-scraper").generate_microservice()
+    MicroserviceGenerator(config_path=r"D:\work\matrx\matrx-dream-service\temp\base_config-backup.json",
+                          output_dir=r"D:\work\matrx\generated\matrx-scraper-2222").generate_microservice()

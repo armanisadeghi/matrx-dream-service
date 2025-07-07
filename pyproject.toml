@@ -1,10 +1,11 @@
 [project]
 name = "matrx-dream-service"
-version = "0.1.0"
+version = "0.0.1"
 description = "Matrx service"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "black>=25.1.0",
     "matrx-utils",
 ]
 
