@@ -173,8 +173,8 @@ class MicroserviceGenerator:
             f.write(env_content)
         vcprint("  📝 Database environment variables written to .env", color="light_green")
 
-        # Generate db_conf.py
-        db_conf_path = self.output_dir / 'database' / 'db_conf.py'
+        # Generate database_registry.py
+        db_conf_path = self.output_dir / 'database_registry.py'
         db_conf_path.parent.mkdir(parents=True, exist_ok=True)
         vcprint("  📁 Created database configuration directory", color="light_green")
 
@@ -232,22 +232,18 @@ from matrx_utils import settings
         for index, db in enumerate(databases):
             db_project_name = db.get('db_project_name', f'database_{index}')
             db_port = db.get('db_port', 5432)
-            code_basics = db.get('code_basics', {})
             manager_config_overrides = db.get('manager_configs', {})
-
-            formatted_code_basics = format_value(code_basics)
-            db_conf_content += f"CODE_BASICS_{index} = {formatted_code_basics}\n\n"
 
             formatted_manager_config = format_value(manager_config_overrides)
             db_conf_content += f"MANAGER_CONFIG_OVERRIDES_{index} = {formatted_manager_config}\n\n"
 
             db_conf_content += f'''my_db_{index} = DatabaseProjectConfig(name="{db_project_name}",
                                    user=settings.DB_USER_{index},
+                                   alias="{db.get('db_alias', 'main')}",
                                    password=settings.DB_PASS_{index},
                                    host=settings.DB_HOST_{index},
                                    port=str({db_port}),
                                    database_name=settings.DB_NAME_{index},
-                                   code_basics=CODE_BASICS_{index},
                                    manager_config_overrides=MANAGER_CONFIG_OVERRIDES_{index})
 
 register_database(my_db_{index})
@@ -256,7 +252,7 @@ register_database(my_db_{index})
         with open(db_conf_path, 'w') as f:
             f.write(db_conf_content)
 
-        vcprint("  📝 Database configuration file (db_conf.py) generated", color="light_green")
+        vcprint("  📝 Database configuration file (database_registry.py) generated", color="light_green")
         vcprint(f"✅ Database configuration completed for {len(databases)} database(s)", color="green")
 
     def _handle_env(self):
@@ -327,7 +323,6 @@ register_database(my_db_{index})
         app_version = settings.get('app_version', '0.1.0')
         app_description = settings.get('app_description', 'A microservice')
         requires_python = settings.get('requires_python', '>=3.8')
-        additional_content = settings.get('pyproject_additional_content', '')
 
         vcprint(f"  📦 Project: {app_name} v{app_version}", color="blue")
         vcprint(f"  📝 Description: {app_description}", color="blue")
@@ -725,9 +720,9 @@ from .validation_functions import *
         vcprint("  📝 Creating root level execution files...", color="blue")
 
         migrations_content = get_migrations_content(app_name)
-        with open(self.output_dir / 'migrations.py', 'w') as f:
+        with open(self.output_dir / 'generate_model_files.py', 'w') as f:
             f.write(migrations_content)
-        vcprint("  ✓ migrations.py - Database migration script", color="light_green")
+        vcprint("  ✓ generate_model_files.py - Database migration script", color="light_green")
 
         run_content = get_run_py_content()
         with open(self.output_dir / 'run.py', 'w') as f:

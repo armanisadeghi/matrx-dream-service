@@ -180,7 +180,7 @@ from services.app_factory import AppServiceFactory
 load_dotenv()
 
 import core.system_logger
-import database.db_conf
+import database_registry
 
 logger = logging.getLogger("app")
 logger.info("Starting application")
@@ -445,7 +445,7 @@ if __name__ == "__main__":
 def get_migrations_content(app_name):
     return f"""import core.settings
 import argparse
-import database.db_conf
+import database_registry
 from matrx_utils import clear_terminal, vcprint, settings
 from matrx_orm.schema_builder import SchemaManager
 from matrx_orm.schema_builder.helpers.git_checker import check_git_status
