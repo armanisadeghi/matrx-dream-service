@@ -206,17 +206,48 @@ app.mount("/socket.io", socketio_app)
 
 vcprint("Socket.IO configured", color="green")
 
-from matrx_orm import get_all_database_project_names
+from matrx_orm import get_all_database_projects_redacted
 from matrx_connect.socket import get_app_factory
-print()
-vcprint("[Application startup complete]", color="yellow")
-vcprint("  Registered Services", color="blue")
-for service_name in get_app_factory().list_registered_service():
-    print(f"   - {service_name}")
-vcprint("  Registered Databases", color="blue")
-for db_name in get_all_database_project_names():
-    print(f"   - {db_name}")
-print()
+
+def format_startup_output():
+    print()
+    vcprint("🚀 Application Startup Complete", color="bright_green")
+    print()
+
+    # Services section
+    vcprint("📋 Registered Services:", color="cyan")
+    services = get_app_factory().list_registered_service()
+    if services:
+        for service_name in services:
+            vcprint(f"   ✓ {service_name}", color="light_green")
+    else:
+        vcprint("   (none)", color="gray")
+
+    print()
+
+    # Databases section
+    vcprint("🗄️  Registered Databases:", color="light_blue")
+    databases = get_all_database_projects_redacted()
+    if databases:
+        for i, db_conf in enumerate(databases, 1):
+            vcprint(f"   Database {i}:", color="cyan")
+            vcprint(f"     Host: {db_conf['host']}", color="white")
+            vcprint(f"     Port: {db_conf['port']}", color="white")
+            vcprint(f"     Database: {db_conf['database_name']}", color="white")
+            vcprint(f"     User: {db_conf['user']}", color="white")
+            vcprint(f"     Password: {db_conf['password']}", color="white")
+            vcprint(f"     Alias: {db_conf['alias']}", color="white")
+            vcprint(f"     Project: {db_conf['database_project']}", color="white")
+            if i < len(databases):
+                print()
+    else:
+        vcprint("   (none)", color="gray")
+    print()
+    vcprint(f"Base directory set to: {settings.BASE_DIR}", color="light_blue")
+    print()
+
+
+format_startup_output()
 '''
 
 
@@ -506,16 +537,16 @@ schema_manager.schema.code_handler.print_all_batched()"""
 
 def get_admin_service_content():
     return """from matrx_connect.socket.services import AdminServiceBase
-from matrx_orm import get_all_database_project_names
+from matrx_orm import get_all_database_projects_redacted
 class AdminService(AdminServiceBase):
 
     def __init__(self):
         super().__init__()
 
     async def get_registered_databases(self):
-        database_names = get_all_database_project_names()
+        database_configs = get_all_database_projects_redacted()
         try:
-            await self.stream_handler.send_data(database_names)
+            await self.stream_handler.send_data(database_configs)
         except Exception as e:
             await self.stream_handler.send_error(
                     user_visible_message="Sorry, unable to complete the {task_name.lower()} task. Please try again later.",

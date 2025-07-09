@@ -663,7 +663,7 @@ from .validation_functions import *
 
         # Generate app.py
         app_content = get_app_py_content()
-        with open(core_dir / 'app.py', 'w') as f:
+        with open(core_dir / 'app.py', 'w', encoding="utf-8") as f:
             f.write(app_content)
         vcprint("  ✓ app.py - Main application entry point", color="light_green")
 
