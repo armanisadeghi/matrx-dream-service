@@ -206,6 +206,10 @@ app.mount("/socket.io", socketio_app)
 
 vcprint("Socket.IO configured", color="green")
 
+from mcp_server import register_all_mcp_tools
+register_all_mcp_tools()
+
+
 from matrx_orm import get_all_database_projects_redacted
 from matrx_connect.socket import get_app_factory
 
@@ -480,6 +484,7 @@ import database_registry
 from matrx_utils import clear_terminal, vcprint, settings
 from matrx_orm.schema_builder import SchemaManager
 from matrx_orm.schema_builder.helpers.git_checker import check_git_status
+from matrx_orm import get_all_database_project_names
 
 clear_terminal()
 
@@ -490,12 +495,21 @@ ADMIN_TS_ROOT = settings.ADMIN_TS_ROOT
 # Set up command-line argument parsing
 parser = argparse.ArgumentParser(description="Database schema migration utility")
 parser.add_argument("--database-project", help="Name of the database project")
+parser.add_argument("--create-all", help="Add this argument if you need to migrate all databases.")
+
 args = parser.parse_args()
 
 # Determine database_project value and whether to skip the prompt
 if args.database_project:
     database_project = args.database_project
     auto_run = True
+    run_all = False
+
+elif args.create_all:
+    database_project = args.database_project
+    auto_run = True
+    run_all = True
+
 else:
     database_project = "{app_name}"
     auto_run = False
@@ -513,27 +527,38 @@ if save_direct:
     if not auto_run:
         input("WARNING: This will overwrite the existing schema files. Press Enter to continue...")
 
-schema_manager = SchemaManager(
-    schema=schema,
-    database_project=database_project,
-    additional_schemas=additional_schemas,
-    save_direct=save_direct,
-)
-schema_manager.initialize()
+if run_all:
+    todo_migrations = get_all_database_project_names()
+else:
+    todo_migrations = [database_project]
 
-matrx_schema_entry = schema_manager.schema.generate_schema_files()
-matrx_models = schema_manager.schema.generate_models()
+vcprint(f'Running migrations for projects {{todo_migrations}}')
 
-analysis = schema_manager.analyze_schema()
-vcprint(
-    data=analysis,
-    title="Schema Analysis",
-    pretty=True,
-    verbose=False,
-    color="yellow",
-)
+for project in todo_migrations:
 
-schema_manager.schema.code_handler.print_all_batched()"""
+    schema_manager = SchemaManager(
+        schema=schema,
+        database_project=project,
+        additional_schemas=additional_schemas,
+        save_direct=save_direct,
+    )
+    schema_manager.initialize()
+
+    matrx_schema_entry = schema_manager.schema.generate_schema_files()
+    matrx_models = schema_manager.schema.generate_models()
+
+    analysis = schema_manager.analyze_schema()
+    vcprint(
+        data=analysis,
+        title="Schema Analysis",
+        pretty=True,
+        verbose=False,
+        color="yellow",
+    )
+
+    schema_manager.schema.code_handler.print_all_batched()
+
+"""
 
 def get_admin_service_content():
     return """from matrx_connect.socket.services import AdminServiceBase
@@ -560,3 +585,40 @@ class AdminService(AdminServiceBase):
     # async def test_database_connection(self):
     #     pass"""
 
+def generate_readme(app_name):
+    return f"""
+# {app_name} Microservice
+
+## Installation and Migrations
+
+```bash
+uv sync
+```
+
+For running migrations for a specific database project, use the following command:
+
+```bash
+uv run --active migrations.py --database-project {app_name}
+```
+
+For running migrations for all database projects available, use:
+
+```bash
+uv run --active migrations.py --create-all true
+```
+
+## Structure and Usage
+
+### App Orchestrator and Business logic
+- `src/<app_name>/<app_name>_orchestrator.py` is the file which brings all the business logic together.
+- Everything in `src/<app_name>/ can contain the actual logic for the service.
+
+
+### App Orchestrator logic affects following connections:
+
+Any change to business logic will IMMEDIATELY affect the following connections:
+- MCP Connection
+- Socket IO Connection
+- API Connection
+
+"""
