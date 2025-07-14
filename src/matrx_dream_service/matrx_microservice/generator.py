@@ -181,10 +181,10 @@ class MicroserviceGenerator:
         for index, db in enumerate(databases):
             db_name = db.get('db_name', f'database_{index}')
             env_content += f"\n# Database {index} - {db_name}\n"
-            env_content += f"DB_USER_{index}={db.get('db_user')}\n"
-            env_content += f"DB_PASS_{index}={db.get('db_password')}\n"
-            env_content += f"DB_HOST_{index}={db.get('db_host')}\n"
-            env_content += f"DB_NAME_{index}={db.get('db_name')}\n"
+            env_content += f"DB_USER_{index}={db.get('user')}\n"
+            env_content += f"DB_PASS_{index}={db.get('password')}\n"
+            env_content += f"DB_HOST_{index}={db.get('host')}\n"
+            env_content += f"DB_NAME_{index}={db.get('database_name')}\n"
 
         # Write .env file
         with open(env_path, 'w') as f:
@@ -248,16 +248,16 @@ from matrx_utils import settings
                 return f"'{value}'"
 
         for index, db in enumerate(databases):
-            db_project_name = db.get('db_project_name', f'database_{index}')
-            db_port = db.get('db_port', 5432)
-            manager_config_overrides = db.get('manager_configs', {})
+            db_project_name = db.get('name', f'database_{index}')
+            db_port = db.get('port', 5432)
+            manager_config_overrides = db.get('manager_config_overrides', {})
 
             formatted_manager_config = format_value(manager_config_overrides)
             db_conf_content += f"MANAGER_CONFIG_OVERRIDES_{index} = {formatted_manager_config}\n\n"
 
             db_conf_content += f'''my_db_{index} = DatabaseProjectConfig(name="{db_project_name}",
                                    user=settings.DB_USER_{index},
-                                   alias="{db.get('db_alias', 'main')}",
+                                   alias="{db.get('alias', 'main')}",
                                    password=settings.DB_PASS_{index},
                                    host=settings.DB_HOST_{index},
                                    port=str({db_port}),
@@ -272,6 +272,7 @@ register_database(my_db_{index})
 
         vcprint("[matrx-dream-service] ✅ Database configuration completed", color="green", verbose=self.debug)
 
+    
     def _handle_env(self):
         env_vars = self.config.get('env', {})
         settings = self.config.get('settings', {})
