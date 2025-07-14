@@ -214,13 +214,13 @@ dependencies = [
 requires-dist = [
     { name = "black", specifier = ">=25.1.0" },
     { name = "githubkit", specifier = ">=0.12.16" },
-    { name = "matrx-utils", git = "https://github.com/armanisadeghi/matrx-utils.git" },
+    { name = "matrx-utils", git = "https://github.com/armanisadeghi/matrx-utils.git?rev=v1.0.0" },
 ]
 
 [[package]]
 name = "matrx-utils"
 version = "0.1.0"
-source = { git = "https://github.com/armanisadeghi/matrx-utils.git#97cb09432b8c0fdcb6336b5eb0371c9b6673cd06" }
+source = { git = "https://github.com/armanisadeghi/matrx-utils.git?rev=v1.0.0#97cb09432b8c0fdcb6336b5eb0371c9b6673cd06" }
 dependencies = [
     { name = "dotenv" },
     { name = "inflect" },
