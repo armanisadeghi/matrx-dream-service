@@ -1,12 +1,9 @@
 import json
 from pathlib import Path
 from typing import Dict, Any
-import subprocess
-import os
-import sys
 import black
+from matrx_utils import FileManager, vcprint
 
-from matrx_utils import vcprint
 from matrx_dream_service.matrx_microservice.contents import get_gitignore_content, get_conversions_content, \
     get_validation_content, get_app_py_content, get_settings_content, get_system_logger_content, \
     get_docker_file_content, get_entrypoint_sh_content, get_run_py_content, get_migrations_content, get_admin_service_content, generate_readme
@@ -14,13 +11,39 @@ from matrx_utils import RESTRICTED_SERVICE_NAMES, \
     RESTRICTED_ENV_VAR_NAMES, RESTRICTED_TASK_AND_DEFINITIONS, RESTRICTED_FIELD_NAMES
 from matrx_dream_service.matrx_microservice.default_template import default_config
 from matrx_dream_service.matrx_microservice.merge_config import TemplateMerger
+from matrx_dream_service.matrx_microservice.github_utils import orchestrate_repo_creation
+
+
 
 
 class MicroserviceGenerator:
-    def __init__(self, config_path: str, output_dir: str):
+    def __init__(self, config_path: str=None, output_dir: str=None, create_github_repo:bool = False, github_project_name: str =None , github_username: str = None, config: dict = None, github_project_description: str = None, debug:bool= False):
         self.config_path = config_path
-        self.output_dir = Path(output_dir)
-        self.config = self._load_config()
+        self.output_dir = Path(output_dir) if output_dir else None
+        self.config = self._load_config() if config_path else None
+
+        self.create_github_repo = create_github_repo
+        self.github_project_name = github_project_name
+        self.github_username = github_username
+        self.file_manager = FileManager("microservices")
+        self.github_project_description = github_project_description
+        self.debug = debug
+
+        if self.create_github_repo:
+            self.set_output_path(self.github_project_name)
+            if not self.config:
+                self.config = self.load_config_direct(config)
+
+    def load_config_direct(self, config: dict):
+        self._validate_config(config)
+        system_config = default_config.copy()
+        merger = TemplateMerger()
+        merged_config = merger.merge(system_config, config)
+        return merged_config
+    
+    def set_output_path(self, github_project_name: str):
+        dirname = self.file_manager.generate_directoryname(random=True)
+        self.output_dir = self.file_manager.get_full_path_from_base(root="temp", path=dirname)
 
     def _validate_config(self, config):
         conflicts = []
@@ -66,7 +89,7 @@ class MicroserviceGenerator:
         # Raise error if any conflicts found
         if conflicts:
             raise ValueError(
-                f"Configuration validation failed:\n" + "\n".join(f"  - {conflict}" for conflict in conflicts))
+                "Configuration validation failed:\n" + "\n".join(f"  - {conflict}" for conflict in conflicts))
 
     def _load_config(self) -> Dict[str, Any]:
         """Load configuration from JSON file"""
@@ -83,18 +106,14 @@ class MicroserviceGenerator:
 
     def generate_microservice(self):
         """Main function to generate the complete microservice"""
-        vcprint("\n" + "=" * 80, color="bright_magenta", style="bold")
-        vcprint("🚀 MATRX MICROSERVICE GENERATOR",
-                color="bright_magenta", style="bold")
-        vcprint("=" * 80, color="bright_magenta", style="bold")
 
         vcprint(
-            f"📁 Target Directory: {self.output_dir}", color="bright_yellow")
-        vcprint(f"📄 Config File: {self.config_path}", color="bright_yellow")
+            f"[matrx-dream-service] 📁 Target Directory: {self.output_dir}", color="bright_yellow", verbose=self.debug)
+        vcprint(f"[matrx-dream-service] 📄 Config File: {self.config_path}", color="bright_yellow", verbose=self.debug)
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        vcprint("\n🔄 Starting microservice generation process...",
+        vcprint("\n[matrx-dream-service] 🔄 Starting microservice generation",
                 color="bright_cyan", style="bold")
 
         self._generate_files()
@@ -112,10 +131,12 @@ class MicroserviceGenerator:
         self._format_project()
         self._generate_readme()
 
-        vcprint("\n" + "=" * 80, color="bright_green", style="bold")
-        vcprint("🎉 MICROSERVICE GENERATION COMPLETE!",
-                color="bright_green", style="bold")
-        vcprint("=" * 80, color="bright_green", style="bold")
+        created_repo = None
+
+        if self.create_github_repo:
+            created_repo = orchestrate_repo_creation(self.github_project_name, self.github_project_description, self.output_dir, username=self.github_username)
+
+        return created_repo
 
     def _generate_readme(self):
         readme_content = generate_readme(self.config.get('app_name', 'microservice'))
@@ -134,7 +155,7 @@ class MicroserviceGenerator:
             full_path.parent.mkdir(parents=True, exist_ok=True)
             full_path.touch()
 
-        vcprint("✅ Base files created", color="green")
+        vcprint("[matrx-dream-service] ✅ Base files created", color="green", verbose=self.debug)
 
     def _generate_gitignore(self):
         gitignore_content = get_gitignore_content()
@@ -143,7 +164,7 @@ class MicroserviceGenerator:
         with open(full_path, 'w') as f:
             f.write(gitignore_content)
 
-        vcprint("✅ .gitignore file generated", color="green")
+        vcprint("[matrx-dream-service] ✅ .gitignore file generated", color="green", verbose=self.debug)
 
     def _handle_databases(self):
         databases = self.config.get('databases', [])
@@ -249,7 +270,7 @@ register_database(my_db_{index})
         with open(db_conf_path, 'w') as f:
             f.write(db_conf_content)
 
-        vcprint("✅ Database configuration completed", color="green")
+        vcprint("[matrx-dream-service] ✅ Database configuration completed", color="green", verbose=self.debug)
 
     def _handle_env(self):
         env_vars = self.config.get('env', {})
@@ -295,7 +316,7 @@ register_database(my_db_{index})
         with open(env_path, 'w') as f:
             f.write(env_content)
 
-        vcprint("✅ Environment variables completed", color="green")
+        vcprint("[matrx-dream-service] ✅ Environment variables completed", color="green", verbose=self.debug)
 
     def _handle_settings(self):
         """Handle settings and generate pyproject.toml"""
@@ -326,7 +347,7 @@ dependencies = [
         with open(pyproject_path, 'w') as f:
             f.write(content)
 
-        vcprint("✅ pyproject.toml generated", color="green")
+        vcprint("[matrx-dream-service] ✅ pyproject.toml generated", color="green", verbose=self.debug)
 
     def _generate_app_files(self):
         """Generate app files based on schema configuration"""
@@ -498,7 +519,7 @@ class AppServiceFactory(ServiceFactory):
         with open(admin_service_file_name, 'w') as f:
             f.write(get_admin_service_content())
 
-        vcprint("✅ Application schema and services generated", color="green")
+        vcprint("[matrx-dream-service] ✅ Application schema and services generated", color="green", verbose=self.debug)
 
     def _generate_service_directories(self):
         schema = self.config.get('schema', {})
@@ -560,7 +581,7 @@ __all__ = ["{orchestrator_class_name}"]
             with open(service_dir / f'{clean_service_name}_orchestrator.py', 'w') as f:
                 f.write(orchestrator_content)
 
-        vcprint("✅ Service directories and orchestrators generated", color="green")
+        vcprint("[matrx-dream-service] ✅ Service directories and orchestrators generated", color="green", verbose=self.debug)
 
     def _generate_other_schema_files(self):
         # Create app_schema directory
@@ -584,7 +605,7 @@ from .validation_functions import *
         with open(app_schema_dir / '__init__.py', 'w') as f:
             f.write(init_content)
 
-        vcprint("✅ Schema validation and conversion functions generated", color="green")
+        vcprint("[matrx-dream-service] ✅ Schema validation and conversion functions generated", color="green", verbose=self.debug)
 
     def _generate_core_files(self):
         settings = self.config.get('settings', {})
@@ -611,7 +632,7 @@ from .validation_functions import *
         with open(core_dir / 'system_logger.py', 'w') as f:
             f.write(system_logger_content)
 
-        vcprint("✅ Core application files generated", color="green")
+        vcprint("[matrx-dream-service] ✅ Core application files generated", color="green", verbose=self.debug)
 
     def _generate_mcp(self):
         schema = self.config.get('schema', {})
@@ -755,7 +776,7 @@ from src.{clean_service_name} import {orchestrator_class_name}
         with open(mcp_dir / '__init__.py', 'w') as f:
             f.write(init_content)
 
-        vcprint("✅ MCP directories and tools generated", color="green")
+        vcprint("[matrx-dream-service] ✅ MCP directories and tools generated", color="green", verbose=self.debug)
 
     def _generate_docker_files(self):
         settings = self.config.get('settings', {})
@@ -776,7 +797,7 @@ from src.{clean_service_name} import {orchestrator_class_name}
         with open(self.output_dir / 'entrypoint.sh', 'w') as f:
             f.write(entrypoint_content)
 
-        vcprint("✅ Docker configuration files generated", color="green")
+        vcprint("[matrx-dream-service] ✅ Docker configuration files generated", color="green", verbose=self.debug)
 
     def _generate_root_files(self):
         settings = self.config.get('settings', {})
@@ -790,7 +811,7 @@ from src.{clean_service_name} import {orchestrator_class_name}
         with open(self.output_dir / 'run.py', 'w') as f:
             f.write(run_content)
 
-        vcprint("✅ Root level files generated", color="green")
+        vcprint("[matrx-dream-service] ✅ Root level files generated", color="green", verbose=self.debug)
 
     def _format_py_file(self, fp):
         file_path = Path(fp)
@@ -821,9 +842,13 @@ from src.{clean_service_name} import {orchestrator_class_name}
             except (black.InvalidInput, ValueError) as e:
                 pass
 
-        vcprint("✅ Project formatted", color="green")
+        vcprint("[matrx-dream-service] ✅ Project formatted", color="green", verbose=self.debug)
 
 
 if __name__ == '__main__':
+
     MicroserviceGenerator(config_path=r"D:\work\matrx\matrx-dream-service\temp\base_config-backup.json",
-                          output_dir=r"D:\work\matrx\generated\matrx-scraper-3").generate_microservice()
+                          output_dir=r"D:\work\matrx\generated\matrx-scraper-3",
+                          create_github_repo=True,
+                          github_project_name="my-scraper",
+                          github_username="jatin-dot-py").generate_microservice()

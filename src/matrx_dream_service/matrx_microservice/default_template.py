@@ -12,7 +12,6 @@ default_config = {
         "app_version": "0.0.1",
         "app_description": "Matrx basic microservice",
         "app_primary_service_name": "matrx",
-        "app_primary_database_project": None,
         "requires_python": ">=3.12"
     },
     "dependencies": [
@@ -35,8 +34,6 @@ default_config = {
         ".env.example",
         ".gitignore",
         "README.md"
-    ],
-    "post_create_scripts": [
-        "uv sync"
     ]
+
 }
