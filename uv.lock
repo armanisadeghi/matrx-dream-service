@@ -220,7 +220,7 @@ requires-dist = [
 [[package]]
 name = "matrx-utils"
 version = "0.1.0"
-source = { git = "https://github.com/armanisadeghi/matrx-utils.git#531809bdc5a5bb8946cb9bc8c040a19bf17b596a" }
+source = { git = "https://github.com/armanisadeghi/matrx-utils.git#97cb09432b8c0fdcb6336b5eb0371c9b6673cd06" }
 dependencies = [
     { name = "dotenv" },
     { name = "inflect" },
