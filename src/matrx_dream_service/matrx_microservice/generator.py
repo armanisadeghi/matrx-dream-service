@@ -1,3 +1,7 @@
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import json
 from pathlib import Path
 from typing import Dict, Any
@@ -139,7 +143,7 @@ class MicroserviceGenerator:
         return created_repo
 
     def _generate_readme(self):
-        readme_content = generate_readme(self.config.get('app_name', 'microservice'))
+        readme_content = generate_readme(self.config['settings'].get('app_name', 'Matrx'))
         full_path = self.output_dir / "README.md"
         with open(full_path, 'w') as f:
             f.write(readme_content)
@@ -338,7 +342,7 @@ description = "{app_description}"
 readme = "README.md"
 requires-python = "{requires_python}"
 dependencies = [
-    '''
+'''
 
             for dep in dependencies:
                 content += f'    "{dep}",\n'
@@ -777,7 +781,7 @@ from src.{clean_service_name} import {orchestrator_class_name}
         with open(mcp_dir / '__init__.py', 'w') as f:
             f.write(init_content)
 
-        vcprint("[matrx-dream-service] ✅ MCP directories and tools generated", color="green", verbose=self.debug)
+        vcprint("[matrx-dream-service] ✅ MCP directories and tools generated", color="green", verbose=self.debug)        
 
     def _generate_docker_files(self):
         settings = self.config.get('settings', {})
@@ -850,6 +854,10 @@ if __name__ == '__main__':
 
     MicroserviceGenerator(config_path=r"D:\work\matrx\matrx-dream-service\temp\base_config-backup.json",
                           output_dir=r"D:\work\matrx\generated\matrx-scraper-3",
-                          create_github_repo=True,
-                          github_project_name="my-scraper",
-                          github_username="jatin-dot-py").generate_microservice()
+                          ).generate_microservice()
+
+    # MicroserviceGenerator(config_path=r"D:\work\matrx\matrx-dream-service\temp\base_config-backup.json",
+    #                       output_dir=r"D:\work\matrx\generated\matrx-scraper-3",
+    #                       create_github_repo=True,
+    #                       github_project_name="my-scraper",
+    #                       github_username="jatin-dot-py").generate_microservice()

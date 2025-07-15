@@ -16,8 +16,8 @@ default_config = {
     },
     "dependencies": [
         "matrx-connect @ git+https://github.com/armanisadeghi/matrx-connect.git@main",
-        "matrx-utils @ git+https://github.com/armanisadeghi/matrx-utils.git@main",
-        "matrx-orm @ git+https://github.com/armanisadeghi/matrx-orm.git@main",
+        "matrx-utils @ git+https://github.com/armanisadeghi/matrx-utils.git@v1.0.0",
+        "matrx-orm @ git+https://github.com/armanisadeghi/matrx-orm.git@v1.0.0",
         "uvicorn",
         "pydantic-settings",
         "python-socketio",

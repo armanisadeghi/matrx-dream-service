@@ -587,7 +587,7 @@ class AdminService(AdminServiceBase):
 
 def generate_readme(app_name):
     return f"""
-# {app_name} Microservice
+# {app_name.capitalize()} Microservice
 
 ## Installation and Migrations
 
