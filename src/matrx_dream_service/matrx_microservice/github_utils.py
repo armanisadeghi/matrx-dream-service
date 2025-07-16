@@ -183,57 +183,77 @@ def orchestrate_repo_creation(base_name: str, description: str, code_path: str, 
         raise
 
 
-def add_collaborator_with_permission(repo_name: str, username: str, permission: str = 'pull') -> None:
-    """
-    Add a user as a collaborator to the repository with specified permission.
-
-    Args:
-        repo_name (str): The name of the repository.
-        username (str): The GitHub username to add.
-        permission (str): The permission level: 'pull' (read), 'push' (read/write), 'triage', 'maintain', or 'admin'.
-
-    Raises:
-        ValueError: If the operation fails.
-    """
-    valid_permissions = ['pull', 'push', 'triage', 'maintain', 'admin']
-    if permission not in valid_permissions:
-        raise ValueError(f"Invalid permission: {permission}. Must be one of {valid_permissions}.")
-
-    try:
-        github_client.rest.repos.add_collaborator(
-            owner=github_org,
-            repo=repo_name,
-            username=username,
-            permission=permission
-        )
-        vcprint(f"[matrx-dream-service] User {username} added as collaborator with {permission} permission.",
-                color="green")
-    except RequestFailed as e:
-        raise ValueError(f"Failed to add collaborator: {e.response.status_code} - {e.response.text}")
-
-
 def list_collaborators(repo_name: str) -> list:
-    """
-    List all collaborators for the repository with their permissions.
-
-    Args:
-        repo_name (str): The name of the repository.
-
-    Returns:
-        list: A list of dicts, each with 'username' and 'permission'.
-
-    Raises:
-        ValueError: If the operation fails.
-    """
     try:
-        collaborators = github_client.rest.repos.list_collaborators(owner=github_org, repo=repo_name).parsed_data
+        collaborators = github_client.rest.repos.list_collaborators(owner=github_org, repo=repo_name, affiliation='direct').parsed_data
         result = []
         for collab in collaborators:
             result.append({
                 'username': collab.login,
-                'permission': collab.permissions
+                'permission': collab.permissions.model_dump()
                 # This is a dict like {'admin': bool, 'push': bool, etc.}, but for simplicity, return the full permissions dict
             })
         return result
     except RequestFailed as e:
         raise ValueError(f"Failed to list collaborators: {e.response.status_code} - {e.response.text}")
+
+
+def add_collaborator_with_permission(repo_name: str, username: str, permission: str = 'pull') -> None:
+    valid_permissions = ['pull', 'push', 'triage', 'maintain', 'admin']
+    if permission not in valid_permissions:
+        raise ValueError(f"Invalid permission: {permission}. Must be one of {valid_permissions}.")
+
+    github_client.rest.repos.add_collaborator(
+        owner=github_org,
+        repo=repo_name,
+        username=username,
+        permission=permission
+    )
+    vcprint(f"[matrx-dream-service] User {username} added as collaborator with {permission} permission.", color="green")
+
+
+def add_collaborators(repo_name: str, access: list[dict]) -> dict:
+    success = []
+    failed = []
+    permission_order = ['admin', 'maintain', 'triage', 'push', 'pull']  # Predefined order: highest to lowest
+    for entry in access:
+        username = entry.get('username')
+        if not username:
+            failed.append(username)
+            continue
+        perm_dict = entry.get('permission', {})
+        selected_perm = None
+        for perm in permission_order:
+            if perm_dict.get(perm, False):
+                selected_perm = perm
+                break
+        if not selected_perm:
+            continue
+        try:
+            add_collaborator_with_permission(repo_name, username, selected_perm)
+            success.append(username)
+        except (RequestFailed, ValueError) as e:
+            failed.append(username)
+    return {'success': success, 'failed': failed}
+
+
+def remove_collaborator(repo_name: str, username: str) -> None:
+    github_client.rest.repos.remove_collaborator(
+        owner=github_org,
+        repo=repo_name,
+        username=username
+    )
+    vcprint(f"[matrx-dream-service] User {username} removed as collaborator.", color="green")
+
+
+def remove_collaborators(repo_name: str, usernames: list[str]) -> dict:
+    success = []
+    failed = []
+    for username in usernames:
+        try:
+            remove_collaborator(repo_name, username)
+            success.append(username)
+        except RequestFailed as e:
+            failed.append(username)
+    return {'success': success, 'failed': failed}
+
