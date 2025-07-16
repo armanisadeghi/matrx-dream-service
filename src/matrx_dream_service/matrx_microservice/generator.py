@@ -1,7 +1,3 @@
-from dotenv import load_dotenv
-
-load_dotenv()
-
 import json
 from pathlib import Path
 from typing import Dict, Any
@@ -18,17 +14,15 @@ from matrx_dream_service.matrx_microservice.merge_config import TemplateMerger
 from matrx_dream_service.matrx_microservice.github_utils import orchestrate_repo_creation
 
 
-
-
 class MicroserviceGenerator:
-    def __init__(self, config_path: str=None, output_dir: str=None, create_github_repo:bool = False, github_project_name: str =None , github_username: str = None, config: dict = None, github_project_description: str = None, debug:bool= False):
+    def __init__(self, config_path: str=None, output_dir: str=None, create_github_repo:bool = False, github_project_name: str =None , github_access: list[dict] = None, config: dict = None, github_project_description: str = None, debug:bool= False):
         self.config_path = config_path
         self.output_dir = Path(output_dir) if output_dir else None
         self.config = self._load_config() if config_path else None
 
         self.create_github_repo = create_github_repo
         self.github_project_name = github_project_name
-        self.github_username = github_username
+        self.github_access = github_access
         self.file_manager = FileManager("microservices")
         self.github_project_description = github_project_description
         self.debug = debug
@@ -138,7 +132,7 @@ class MicroserviceGenerator:
         created_repo = None
 
         if self.create_github_repo:
-            created_repo = orchestrate_repo_creation(self.github_project_name, self.github_project_description, self.output_dir, username=self.github_username)
+            created_repo = orchestrate_repo_creation(self.github_project_name, self.github_project_description, self.output_dir, access=self.github_access)
 
         return created_repo
 
@@ -849,15 +843,3 @@ from src.{clean_service_name} import {orchestrator_class_name}
 
         vcprint("[matrx-dream-service] ✅ Project formatted", color="green", verbose=self.debug)
 
-
-if __name__ == '__main__':
-
-    MicroserviceGenerator(config_path=r"D:\work\matrx\matrx-dream-service\temp\base_config-backup.json",
-                          output_dir=r"D:\work\matrx\generated\matrx-scraper-3",
-                          ).generate_microservice()
-
-    # MicroserviceGenerator(config_path=r"D:\work\matrx\matrx-dream-service\temp\base_config-backup.json",
-    #                       output_dir=r"D:\work\matrx\generated\matrx-scraper-3",
-    #                       create_github_repo=True,
-    #                       github_project_name="my-scraper",
-    #                       github_username="jatin-dot-py").generate_microservice()
