@@ -1,12 +1,14 @@
 import json
 from pathlib import Path
 from typing import Dict, Any
-import black
-from matrx_utils import FileManager, vcprint
 
+import black
+import os, subprocess, sys
+from matrx_utils import FileManager, vcprint
 from matrx_dream_service.matrx_microservice.contents import get_gitignore_content, get_conversions_content, \
     get_validation_content, get_app_py_content, get_settings_content, get_system_logger_content, \
-    get_docker_file_content, get_entrypoint_sh_content, get_run_py_content, get_migrations_content, get_admin_service_content, generate_readme
+    get_docker_file_content, get_entrypoint_sh_content, get_run_py_content, get_migrations_content, \
+    get_admin_service_content, generate_readme
 from matrx_utils import RESTRICTED_SERVICE_NAMES, \
     RESTRICTED_ENV_VAR_NAMES, RESTRICTED_TASK_AND_DEFINITIONS, RESTRICTED_FIELD_NAMES
 from matrx_dream_service.matrx_microservice.default_template import default_config
@@ -15,7 +17,9 @@ from matrx_dream_service.matrx_microservice.github_utils import orchestrate_repo
 
 
 class MicroserviceGenerator:
-    def __init__(self, config_path: str=None, output_dir: str=None, create_github_repo:bool = False, github_project_name: str =None , github_access: list[dict] = None, config: dict = None, github_project_description: str = None, debug:bool= False):
+    def __init__(self, config_path: str = None, output_dir: str = None, create_github_repo: bool = False,
+                 github_project_name: str = None, github_access: list[dict] = None, config: dict = None,
+                 github_project_description: str = None, debug: bool = False):
         self.config_path = config_path
         self.output_dir = Path(output_dir) if output_dir else None
         self.config = self._load_config() if config_path else None
@@ -27,7 +31,10 @@ class MicroserviceGenerator:
         self.github_project_description = github_project_description
         self.debug = debug
 
+        self.is_local = True
+
         if self.create_github_repo:
+            self.is_local = False
             self.set_output_path(self.github_project_name)
             if not self.config:
                 self.config = self.load_config_direct(config)
@@ -38,7 +45,7 @@ class MicroserviceGenerator:
         merger = TemplateMerger()
         merged_config = merger.merge(system_config, config)
         return merged_config
-    
+
     def set_output_path(self, github_project_name: str):
         dirname = self.file_manager.generate_directoryname(random=True)
         self.output_dir = self.file_manager.get_full_path_from_base(root="temp", path=dirname)
@@ -129,10 +136,14 @@ class MicroserviceGenerator:
         self._format_project()
         self._generate_readme()
 
+        if self.is_local:
+            self._run_post_create_scripts()
+
         created_repo = None
 
         if self.create_github_repo:
-            created_repo = orchestrate_repo_creation(self.github_project_name, self.github_project_description, self.output_dir, access=self.github_access)
+            created_repo = orchestrate_repo_creation(self.github_project_name, self.github_project_description,
+                                                     self.output_dir, access=self.github_access)
 
         return created_repo
 
@@ -270,7 +281,6 @@ register_database(my_db_{index})
 
         vcprint("[matrx-dream-service] ✅ Database configuration completed", color="green", verbose=self.debug)
 
-    
     def _handle_env(self):
         env_vars = self.config.get('env', {})
         settings = self.config.get('settings', {})
@@ -580,7 +590,8 @@ __all__ = ["{orchestrator_class_name}"]
             with open(service_dir / f'{clean_service_name}_orchestrator.py', 'w') as f:
                 f.write(orchestrator_content)
 
-        vcprint("[matrx-dream-service] ✅ Service directories and orchestrators generated", color="green", verbose=self.debug)
+        vcprint("[matrx-dream-service] ✅ Service directories and orchestrators generated", color="green",
+                verbose=self.debug)
 
     def _generate_other_schema_files(self):
         # Create app_schema directory
@@ -604,7 +615,8 @@ from .validation_functions import *
         with open(app_schema_dir / '__init__.py', 'w') as f:
             f.write(init_content)
 
-        vcprint("[matrx-dream-service] ✅ Schema validation and conversion functions generated", color="green", verbose=self.debug)
+        vcprint("[matrx-dream-service] ✅ Schema validation and conversion functions generated", color="green",
+                verbose=self.debug)
 
     def _generate_core_files(self):
         settings = self.config.get('settings', {})
@@ -664,7 +676,8 @@ from typing import Any, Dict, Union
 
 from src.{clean_service_name} import {orchestrator_class_name}
 
-'''.format(clean_service_name=clean_service_name, orchestrator_class_name=clean_service_name.capitalize() + 'Orchestrator')
+'''.format(clean_service_name=clean_service_name,
+           orchestrator_class_name=clean_service_name.capitalize() + 'Orchestrator')
 
             tool_functions = []
             register_calls = []
@@ -683,7 +696,6 @@ from src.{clean_service_name} import {orchestrator_class_name}
                 else:
                     fields = task_def
 
-
                 # Generate tool function
                 tool_content += f'async def {tool_name}(args: Dict[str, Any]) -> Dict[str, Any]:\n'
                 tool_content += '    """\n'
@@ -696,7 +708,8 @@ from src.{clean_service_name} import {orchestrator_class_name}
                 tool_content += '        Dictionary with status and result/error information\n'
                 tool_content += '    """\n'
                 tool_content += '    try:\n'
-                tool_content += '        orchestrator = {orchestrator_class_name}()\n'.format(orchestrator_class_name=clean_service_name.capitalize() + 'Orchestrator')
+                tool_content += '        orchestrator = {orchestrator_class_name}()\n'.format(
+                    orchestrator_class_name=clean_service_name.capitalize() + 'Orchestrator')
                 tool_content += f'        result = await orchestrator.{method_name}()\n'
                 tool_content += '        return {\n'
                 tool_content += '            "status": "success",\n'
@@ -726,7 +739,8 @@ from src.{clean_service_name} import {orchestrator_class_name}
                                           '            },\n')
                     if 'default' in field_def:
                         default_str = repr(field_def['default'])
-                        register_calls[-1] = register_calls[-1].rstrip(',\n') + ',\n' + f'                "default": {default_str}\n            }},\n'
+                        register_calls[-1] = register_calls[-1].rstrip(
+                            ',\n') + ',\n' + f'                "default": {default_str}\n            }},\n'
                 register_calls.append('        },\n'
                                       '        output_schema={\n'
                                       '            "type": "object",\n'
@@ -775,7 +789,7 @@ from src.{clean_service_name} import {orchestrator_class_name}
         with open(mcp_dir / '__init__.py', 'w') as f:
             f.write(init_content)
 
-        vcprint("[matrx-dream-service] ✅ MCP directories and tools generated", color="green", verbose=self.debug)        
+        vcprint("[matrx-dream-service] ✅ MCP directories and tools generated", color="green", verbose=self.debug)
 
     def _generate_docker_files(self):
         settings = self.config.get('settings', {})
@@ -843,3 +857,56 @@ from src.{clean_service_name} import {orchestrator_class_name}
 
         vcprint("[matrx-dream-service] ✅ Project formatted", color="green", verbose=self.debug)
 
+    def _run_post_create_scripts(self):
+
+        scripts = ["uv sync",
+                   "uv run --active generate_model_files.py --create-all true",
+                   "git init ."
+                   ]
+
+        original_dir = os.getcwd()
+        env = os.environ.copy()
+        env['PYTHONIOENCODING'] = 'utf-8'
+        env['PYTHONLEGACYWINDOWSFSENCODING'] = '0'
+
+        try:
+            os.chdir(self.output_dir)
+            vcprint(f"📁 Changed working directory to: {self.output_dir}", color="light_blue")
+
+            for i, script in enumerate(scripts, 1):
+                vcprint(f"\n{'─' * 60}", color="bright_cyan")
+                vcprint(f"⚡ Executing script {i}/{len(scripts)}: {script}", color="bright_cyan", style="bold")
+                vcprint(f"{'─' * 60}", color="bright_cyan")
+
+                cmd_parts = script.split()
+                try:
+                    process = subprocess.Popen(
+                        cmd_parts,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        universal_newlines=True,
+                        bufsize=1,
+                        env=env,
+                        encoding='utf-8',
+                        errors='replace'
+                    )
+                    while True:
+                        output = process.stdout.readline()
+                        if output == '' and process.poll() is not None:
+                            break
+                        if output:
+                            print(output.strip())
+                            sys.stdout.flush()
+                    return_code = process.poll()
+
+                    if return_code == 0:
+                        vcprint(f"✅ Script {i} completed successfully: {script}", color="green", style="bold")
+                    else:
+                        vcprint(f"❌ Script {i} failed with return code {return_code}: {script}", color="red",
+                                style="bold")
+                except FileNotFoundError:
+                    vcprint(f"❌ Command not found: {script}", color="red")
+                except Exception as e:
+                    vcprint(f"❌ Error executing script '{script}': {e}", "red")
+        finally:
+            os.chdir(original_dir)

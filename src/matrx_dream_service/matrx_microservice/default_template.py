@@ -15,7 +15,7 @@ default_config = {
         "requires_python": ">=3.12"
     },
     "dependencies": [
-        "matrx-connect @ git+https://github.com/armanisadeghi/matrx-connect.git@main",
+        "matrx-connect @ git+https://github.com/armanisadeghi/matrx-connect.git@v1.0.1",
         "matrx-utils @ git+https://github.com/armanisadeghi/matrx-utils.git@v1.0.0",
         "matrx-orm @ git+https://github.com/armanisadeghi/matrx-orm.git@v1.0.0",
         "uvicorn",
