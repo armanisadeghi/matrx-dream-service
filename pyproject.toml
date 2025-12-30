@@ -7,7 +7,7 @@ requires-python = ">=3.10"
 dependencies = [
     "black>=25.1.0",
     "githubkit>=0.12.16",
-    "matrx-utils @ git+https://github.com/armanisadeghi/matrx-utils.git@v1.0.1",
+    "matrx-utils>=1.0.2",
 ]
 
 [project.scripts]
