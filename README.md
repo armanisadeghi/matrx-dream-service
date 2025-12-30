@@ -199,23 +199,80 @@ matrx create-microservice --config <path> --output_dir <dir> [options]
    ```
 
 
-## Updating to a new version
+## Installation
 
-1. Make local updates, test them and confirm they are good.
-    - Check current tags: git tag
-    - Identify the next tag to be used
-2. commit and Push all updates
-    - git commit -m "Update columns.py schema builder - v1.0.2"
-    - git push origin main
-3. Tag the commit:
-    - git tag v1.0.2
-    - git push origin v1.0.2
-4. Confirm tags are properly updates:
-    - git tag
-    - Example:
-        v1.0.0
-        v1.0.2
-5. Make updates to apps that need the updated version:
-    - AI Dream pyproject.toml Example: 
-    - Before: matrx-dream-service = { git = "https://github.com/armanisadeghi/matrx-dream-service", rev = "v1.0.0" }
-    - After: matrx-dream-service = { git = "https://github.com/armanisadeghi/matrx-dream-service", rev = "v1.0.2" }
+### From PyPI (recommended)
+
+```bash
+pip install matrx-dream-service
+# or with uv
+uv add matrx-dream-service
+```
+
+### From GitHub (for development)
+
+```bash
+pip install git+https://github.com/armanisadeghi/matrx-dream-service.git
+```
+
+## Publishing a New Version
+
+### Automated PyPI Publishing (Current Process)
+
+The package automatically publishes to PyPI when you push a version tag. Here's the workflow:
+
+1. **Make and test your changes locally**
+   ```bash
+   # Test your changes
+   ```
+
+2. **Update the version in pyproject.toml**
+   ```toml
+   version = "1.0.4"  # Increment appropriately
+   ```
+
+3. **Commit and push changes**
+   ```bash
+   git add .
+   git commit -m "Add new feature - v1.0.4"
+   git push origin main
+   ```
+
+4. **Create and push the version tag**
+   ```bash
+   git tag v1.0.4
+   git push origin v1.0.4
+   ```
+
+5. **GitHub Actions automatically:**
+   - Verifies the tag matches pyproject.toml version
+   - Builds the package
+   - Publishes to PyPI
+
+6. **Update dependent projects**
+   
+   In projects like AI Dream, simply update the version:
+   ```bash
+   uv add matrx-dream-service@1.0.4
+   # or manually in pyproject.toml:
+   # matrx-dream-service = "^1.0.4"
+   ```
+
+### Version History
+
+Check current tags: `git tag`
+
+Example output:
+```
+v1.0.0
+v1.0.1
+v1.0.2
+v1.0.3
+```
+
+### Important Notes
+
+- **Always update pyproject.toml version before tagging**
+- The GitHub Action will fail if tag version ≠ pyproject.toml version
+- Semantic versioning: MAJOR.MINOR.PATCH (e.g., v1.0.4)
+- Tags trigger automatic PyPI publishing
